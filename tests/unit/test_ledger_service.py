@@ -1,18 +1,18 @@
 import pytest
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import select, func
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from app.database import Base
 from app.models.account import Account
-from app.models.transfer import Transfer
 from app.models.entry import Entry
-from app.services.ledger import execute_transfer
 from app.services.exceptions import (
-    IdempotencyConflictError,
     AccountNotFoundError,
     CurrencyMismatchError,
+    IdempotencyConflictError,
     InsufficientBalanceError,
-    InvalidTransferError
+    InvalidTransferError,
 )
+from app.services.ledger import execute_transfer
 
 # Setup async in-memory SQLite engine
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -99,7 +99,7 @@ async def test_rejects_insufficient_balance(db_session, setup_accounts):
 
 @pytest.mark.asyncio
 async def test_allows_external_accounts_to_go_negative(db_session, setup_accounts):
-    transfer = await execute_transfer(
+    await execute_transfer(
         db_session, idempotency_key="ext_1", from_account_id=4, to_account_id=1, amount=1000.0, currency="USD"
     )
     await db_session.commit()

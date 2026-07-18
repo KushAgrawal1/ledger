@@ -1,5 +1,7 @@
-from sqlalchemy import Column, String, Numeric, Integer, ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, String
+
 from app.database import Base
+
 
 class Transfer(Base):
     __tablename__ = "transfers"

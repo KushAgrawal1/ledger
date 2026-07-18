@@ -1,7 +1,9 @@
 from fastapi import FastAPI
-from app.api.routes import router as api_router, account_router
+
 from app.api.auth import router as auth_router
 from app.api.exceptions import ledger_exception_handler
+from app.api.routes import account_router
+from app.api.routes import router as api_router
 from app.services.exceptions import LedgerError
 
 app = FastAPI(title="Distributed Ledger API")

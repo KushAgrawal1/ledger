@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Numeric, Integer, ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer, Numeric
+
 from app.database import Base
+
 
 class Entry(Base):
     __tablename__ = "entries"

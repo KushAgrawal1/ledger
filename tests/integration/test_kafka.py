@@ -1,16 +1,12 @@
-import asyncio
 import json
+
 import pytest
 from aiokafka import AIOKafkaConsumer
 from testcontainers.kafka import KafkaContainer
 
 from app.models.transfer import Transfer
 from app.services.ledger import execute_transfer
-from app.services.publisher import (
-    InMemoryTransferEventPublisher, 
-    KafkaTransferEventPublisher
-)
-
+from app.services.publisher import InMemoryTransferEventPublisher, KafkaTransferEventPublisher
 
 # ==========================================
 # UNIT TESTS (Fast, In-Memory)
@@ -131,7 +127,7 @@ async def test_event_is_consumable_from_kafka_topic():
             assert len(msg_set) > 0, "No messages were consumed from Kafka topic"
             
             # Extract and parse the payload
-            for topic_partition, messages in msg_set.items():
+            for _topic_partition, messages in msg_set.items():
                 first_message = messages[0]
                 payload = first_message.value
                 

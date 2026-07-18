@@ -1,16 +1,17 @@
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-pythonpath = ["."]
-markers = [
-    "integration: Integration tests utilizing external dependencies like database containers."
-]
+markers = ["integration: requires Docker (Testcontainers)"]
 
 [tool.coverage.run]
 source = ["app"]

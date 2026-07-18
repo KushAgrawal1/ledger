@@ -1,22 +1,22 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy import select, desc
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Annotated, List
+from typing import Annotated
 
-from app.database import get_db
-from app.api.schemas import (
-    TransferRequest, 
-    TransferResponse, 
-    AccountCreate, 
-    AccountResponse, 
-    EntryResponse, 
-    StatementResponse
-)
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_user
-from app.models.user import User
+from app.api.schemas import (
+    AccountCreate,
+    AccountResponse,
+    StatementResponse,
+    TransferRequest,
+    TransferResponse,
+)
+from app.database import get_db
 from app.models.account import Account
-from app.models.transfer import Transfer
 from app.models.entry import Entry
+from app.models.transfer import Transfer
+from app.models.user import User
 from app.services.ledger import execute_transfer
 
 # We split into two routers to match Phase 4 specs: 
@@ -184,6 +184,6 @@ async def readyz(db: AsyncSession = Depends(get_db)):
         return {"status": "ready"}
     except Exception:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database connection failure"
-        )
+        ) from None

@@ -1,9 +1,11 @@
-import logging
 import json
+import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Protocol
+
 from aiokafka import AIOKafkaProducer
+
 from app.api.schemas import TransferCompletedEvent
 from app.models.transfer import Transfer
 
@@ -41,7 +43,7 @@ class KafkaTransferEventPublisher:
             to_account_id=transfer.to_account_id,
             amount=transfer.amount,
             currency=transfer.currency,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
         
         try:
@@ -76,6 +78,6 @@ class InMemoryTransferEventPublisher:
             to_account_id=transfer.to_account_id,
             amount=transfer.amount,
             currency=transfer.currency,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
         self.published_events.append(event)

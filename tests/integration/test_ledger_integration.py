@@ -1,14 +1,15 @@
 import asyncio
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.account import Account
 from app.models.transfer import Transfer
-from app.models.user import User
-from app.services.ledger import execute_transfer
 from app.services.exceptions import InsufficientBalanceError
+from app.services.ledger import execute_transfer
+
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -199,7 +200,7 @@ async def test_full_http_ledger_lifecycle_flow(client: AsyncClient):
     acc2_id = acc2_resp.json()["id"]
 
     # Register an admin/external system to generate an external source account for deposits
-    admin_reg = await client.post(
+    await client.post(
         "/auth/register", 
         json={"username": "admin_system", "password": "system_admin_password", "role": "admin"}
     )

@@ -1,11 +1,11 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import ALGORITHM, JWT_SECRET
 from app.database import get_db
 from app.models.user import User
-from app.core.security import JWT_SECRET, ALGORITHM
 
 # This dependency intercepts and handles HTTP Bearer authorization headers
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -25,7 +25,7 @@ async def get_current_user(
         if user_id is None:
             raise credentials_exception
     except JWTError:
-        raise credentials_exception
+        raise credentials_exception from None
         
     user = await db.get(User, int(user_id))
     if user is None:

@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
 
 # ==========================================
 # AUTH SCHEMAS (Phase 5)
@@ -10,7 +10,7 @@ from datetime import datetime
 class UserRegister(BaseModel):
     username: str = Field(..., min_length=3, max_length=150)
     password: str = Field(..., min_length=6)
-    role: Optional[str] = "customer"  # "customer" or "admin"
+    role: str | None = "customer"  # "customer" or "admin"
 
 class UserResponse(BaseModel):
     id: int
@@ -38,7 +38,7 @@ class AccountResponse(BaseModel):
     currency: str
     balance: Decimal
     type: str
-    owner_id: Optional[int] = None
+    owner_id: int | None = None
 
     class Config:
         from_attributes = True
@@ -81,7 +81,7 @@ class EntryResponse(BaseModel):
 # ==========================================
 
 class StatementResponse(BaseModel):
-    entries: List[EntryResponse]
+    entries: list[EntryResponse]
     limit: int
     offset: int
 
