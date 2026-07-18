@@ -3,10 +3,16 @@ import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
+
+import app.models.account  # noqa: F401
+import app.models.entry  # noqa: F401
+import app.models.transfer  # noqa: F401
+import app.models.user  # noqa: F401
 from alembic import context
+from app.database import Base
 
 # --- PATH RESOLUTION ---
-# This ensures that your project root is in Python's search path, 
+# This ensures that your project root is in Python's search path,
 # preventing "ModuleNotFoundError" or "ImportError" for the 'app' package.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -19,17 +25,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# --- IMPORT MODELS & BASE ---
-# 1. Import your SQLAlchemy Base class (this tracks all your models)
-from app.database import Base  
-
-# 2. Import your models so Alembic is aware of them before generating the schema
-import app.models.user      # noqa
-import app.models.account   # noqa
-import app.models.entry     # noqa
-import app.models.transfer  # noqa
-
-# 3. Assign the metadata object
+# Assign the metadata object
 target_metadata = Base.metadata
 
 
