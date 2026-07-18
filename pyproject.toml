@@ -7,7 +7,10 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-markers = ["integration: requires Docker (Testcontainers)"]
+pythonpath = ["."]
+markers = [
+    "integration: Integration tests utilizing external dependencies like database containers."
+]
 
 [tool.coverage.run]
 source = ["app"]

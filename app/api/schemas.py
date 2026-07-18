@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from decimal import Decimal
+from datetime import datetime
 
 # ==========================================
 # AUTH SCHEMAS (Phase 5)
@@ -83,3 +84,21 @@ class StatementResponse(BaseModel):
     entries: List[EntryResponse]
     limit: int
     offset: int
+
+
+# ==========================================
+# KAFKA EVENT SCHEMAS (Phase 8)
+# ==========================================
+
+class TransferCompletedEvent(BaseModel):
+    schema_version: int = Field(default=1, frozen=True)
+    event_id: str
+    transfer_id: int
+    from_account_id: int
+    to_account_id: int
+    amount: Decimal
+    currency: str
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True

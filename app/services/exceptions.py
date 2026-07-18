@@ -1,22 +1,36 @@
 class LedgerError(Exception):
-    """Base error for ledger operations."""
+    """Base exception for all ledger and transaction operations."""
+    pass
 
-class IdempotencyConflictError(LedgerError):
-    def __init__(self, key: str):
-        super().__init__(f"Conflict: Idempotency key '{key}' already exists with a different payload.")
-
-class AccountNotFoundError(LedgerError):
-    def __init__(self, account_id: int):
-        super().__init__(f"Account {account_id} not found.")
-
-class CurrencyMismatchError(LedgerError):
-    def __init__(self):
-        super().__init__("Transfer currency must match both source and destination accounts.")
 
 class InsufficientBalanceError(LedgerError):
-    def __init__(self, account_id: int):
-        super().__init__(f"Account {account_id} has insufficient funds.")
+    """Raised when an account has insufficient funds to complete a transfer."""
+    pass
+
+
+class IdempotencyKeyConflictError(LedgerError):
+    """
+    Raised when an incoming request uses an existing idempotency key,
+    but the payload details (amounts, accounts, or currency) do not match 
+    the original transaction.
+    """
+    pass
+
+
+# Alias to maintain compatibility with app/api/exceptions.py
+IdempotencyConflictError = IdempotencyKeyConflictError
+
+
+class CurrencyMismatchError(LedgerError):
+    """Raised when transfer currencies do not match the target accounts' native currencies."""
+    pass
+
+
+class AccountNotFoundError(LedgerError):
+    """Raised when a requested account identifier does not exist in the database."""
+    pass
+
 
 class InvalidTransferError(LedgerError):
-    def __init__(self, message: str):
-        super().__init__(message)
+    """Raised when a transfer is structurally invalid (e.g., self-transfers)."""
+    pass
