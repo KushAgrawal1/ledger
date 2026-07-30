@@ -33,3 +33,4 @@ testcontainers[postgres,kafka]==4.14.2
 
 # Linting
 ruff==0.15.21
+aiosqlite==0.22.1
