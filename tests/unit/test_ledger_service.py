@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -142,5 +144,5 @@ async def test_balance_integrity_after_multi_transfers(db_session, setup_account
         entries_sum = entries_sum_res.scalar() or 0.0
         
         # Initial starting balance + sum of all transaction entries == current balance
-        initial_balance = 100.0 if acc_id == 1 else 50.0
+        initial_balance = Decimal("100.0") if acc_id == 1 else Decimal("50.0")
         assert acc.balance == initial_balance + entries_sum

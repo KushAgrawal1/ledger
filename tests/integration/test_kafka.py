@@ -1,4 +1,5 @@
 import json
+import shutil
 
 import pytest
 from aiokafka import AIOKafkaConsumer
@@ -13,7 +14,7 @@ from app.services.publisher import InMemoryTransferEventPublisher, KafkaTransfer
 # ==========================================
 
 @pytest.mark.asyncio
-async def test_transfer_publishes_event_on_success(session):
+async def test_transfer_publishes_event_on_success(db_session):
     """Verifies successful transfers trigger correct versioned payloads on the publisher interface."""
     # Setup mock data
     publisher = InMemoryTransferEventPublisher()
@@ -21,12 +22,12 @@ async def test_transfer_publishes_event_on_success(session):
     from app.models.account import Account
     acc_a = Account(id=1001, currency="GBP", balance=500.0, type="customer")
     acc_b = Account(id=1002, currency="GBP", balance=0.0, type="customer")
-    session.add_all([acc_a, acc_b])
-    await session.commit()
+    db_session.add_all([acc_a, acc_b])
+    await db_session.flush()
 
     # Execute
     await execute_transfer(
-        db=session,
+        db=db_session,
         idempotency_key="fast-test-event-key",
         from_account_id=1001,
         to_account_id=1002,
@@ -47,7 +48,7 @@ async def test_transfer_publishes_event_on_success(session):
 
 
 @pytest.mark.asyncio
-async def test_kafka_down_does_not_fail_transfer(session):
+async def test_kafka_down_does_not_fail_transfer(db_session):
     """
     Guarantees robustness: If the broker is unreachable,
     the event fail-safes are triggered, logging is generated,
@@ -59,12 +60,12 @@ async def test_kafka_down_does_not_fail_transfer(session):
     from app.models.account import Account
     acc_a = Account(id=2001, currency="GBP", balance=200.0, type="customer")
     acc_b = Account(id=2002, currency="GBP", balance=0.0, type="customer")
-    session.add_all([acc_a, acc_b])
-    await session.commit()
+    db_session.add_all([acc_a, acc_b])
+    await db_session.flush()
 
     # Execution should finish cleanly without rising exceptions despite dead Kafka link
     tx = await execute_transfer(
-        db=session,
+        db=db_session,
         idempotency_key="unreachable-broker-key",
         from_account_id=2001,
         to_account_id=2002,
@@ -82,6 +83,7 @@ async def test_kafka_down_does_not_fail_transfer(session):
 # ==========================================
 
 @pytest.mark.integration
+@pytest.mark.skipif(shutil.which("docker") is None, reason="Docker not available")
 @pytest.mark.asyncio
 async def test_event_is_consumable_from_kafka_topic():
     """
@@ -135,7 +137,7 @@ async def test_event_is_consumable_from_kafka_topic():
                 assert payload["transfer_id"] == 42
                 assert payload["from_account_id"] == 5001
                 assert payload["to_account_id"] == 5002
-                assert payload["amount"] == 250.00
+                assert float(payload["amount"]) == 250.00
                 assert payload["currency"] == "USD"
         finally:
             await consumer.stop()
