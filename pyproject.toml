@@ -11,6 +11,7 @@ ignore = ["B008"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+pythonpath = ["."]
 markers = ["integration: requires Docker (Testcontainers)"]
 
 [tool.coverage.run]

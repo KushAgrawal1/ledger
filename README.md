@@ -90,3 +90,5 @@ Roadmap / not yet implemented
 Containerising the API itself (currently only PostgreSQL runs via Docker Compose)
 CI pipeline (GitHub Actions workflow directory exists but is not yet configured)
 Event publishing (e.g. Kafka) for downstream consumers such as audit trails or notifications
+
+![CI](https://github.com/KushAgrawal1/ledger/actions/workflows/ci.yml/badge.svg)
