@@ -1,107 +1,137 @@
 import pytest
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.security import get_password_hash, verify_password
-from app.database import Base, get_db
-from app.main import app
 from app.models.account import Account
 from app.models.user import User
 
-DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
-@pytest.fixture
-async def auth_db():
-    engine = create_async_engine(DATABASE_URL, echo=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        
-    async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with async_session() as session:
-        yield session
-    await engine.dispose()
-
-@pytest.fixture
-async def client(auth_db):
-    async def override_get_db():
-        yield auth_db
-    app.dependency_overrides[get_db] = override_get_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        yield ac
-    app.dependency_overrides.clear()
-
 
 @pytest.mark.asyncio
-async def test_register_hashes_password(client, auth_db):
-    """Register hashes password (bcrypt via passlib), never stores plaintext."""
-    payload = {"username": "test_user", "password": "secure_password_123", "role": "customer"}
+async def test_register_hashes_password(client, db_session):
+    """POST /auth/register hashes the password and never stores plaintext."""
+    payload = {"username": "register_test", "password": "secure_pass_123", "role": "customer"}
     response = await client.post("/auth/register", json=payload)
     assert response.status_code == 201
-    
-    # Query database directly to assert hashed verification
-    user_in_db = await auth_db.get(User, response.json()["id"])
-    assert user_in_db.hashed_password != "secure_password_123"
-    assert verify_password("secure_password_123", user_in_db.hashed_password)
+
+    user_in_db = await db_session.get(User, response.json()["id"])
+    assert user_in_db.hashed_password != "secure_pass_123"
+    assert verify_password("secure_pass_123", user_in_db.hashed_password)
 
 
 @pytest.mark.asyncio
-async def test_login_with_wrong_password_fails(client, auth_db):
-    """Login with wrong password → 401"""
-    # Create manual user
-    hashed = get_password_hash("real_pass")
-    user = User(username="login_test", hashed_password=hashed)
-    auth_db.add(user)
-    await auth_db.commit()
+async def test_register_duplicate_username_returns_400(client, db_session):
+    """Registering the same username twice → 400."""
+    payload = {"username": "duplicate_user", "password": "pass123", "role": "customer"}
+    r1 = await client.post("/auth/register", json=payload)
+    assert r1.status_code == 201
 
-    # Attempt incorrect password login
-    response = await client.post("/auth/token", data={"username": "login_test", "password": "wrong_pass"})
+    r2 = await client.post("/auth/register", json=payload)
+    assert r2.status_code == 400
+    assert "already registered" in r2.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_login_success_returns_token(client, db_session):
+    """POST /auth/token with correct credentials → 200 with access_token."""
+    user = User(
+        username="login_ok_user",
+        hashed_password=get_password_hash("correct_pass"),
+        role="customer",
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    response = await client.post(
+        "/auth/token",
+        data={"username": "login_ok_user", "password": "correct_pass"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "access_token" in body
+    assert body["token_type"] == "bearer"
+
+
+@pytest.mark.asyncio
+async def test_login_with_wrong_password_returns_401(client, db_session):
+    """POST /auth/token with wrong password → 401."""
+    user = User(
+        username="login_fail_user",
+        hashed_password=get_password_hash("real_pass"),
+        role="customer",
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    response = await client.post(
+        "/auth/token",
+        data={"username": "login_fail_user", "password": "wrong_pass"},
+    )
     assert response.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_route_rejects_missing_or_expired_jwt(client, auth_db):
-    """Valid JWT grants access; missing/expired/garbage token → 401"""
-    # Create manual user with account
-    hashed = get_password_hash("pass")
-    user = User(id=10, username="user_10", hashed_password=hashed)
-    account = Account(id=101, currency="USD", balance=100.0, type="customer", owner_id=10)
-    auth_db.add_all([user, account])
-    await auth_db.commit()
+async def test_route_rejects_missing_token(client, db_session):
+    """Request without Authorization header → 401."""
+    acc = Account(id=501, currency="USD", balance=0.0, type="customer", owner_id=9001)
+    db_session.add(acc)
+    await db_session.flush()
 
-    # Request without token
-    r1 = await client.get("/accounts/101")
-    assert r1.status_code == 401
-
-    # Request with garbage token
-    r2 = await client.get("/accounts/101", headers={"Authorization": "Bearer non-existent-jwt"})
-    assert r2.status_code == 401
+    r = await client.get("/accounts/501", headers={"Authorization": ""})
+    assert r.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_customer_can_only_access_own_accounts(client, auth_db):
-    """Customer can access own accounts only; admin can access any (404 instead of 403)"""
-    # 1. Setup Database Users & Accounts
-    user_a = User(id=1, username="customer_a", hashed_password=get_password_hash("pass"), role="customer")
-    user_b = User(id=2, username="customer_b", hashed_password=get_password_hash("pass"), role="customer")
-    admin = User(id=3, username="admin_user", hashed_password=get_password_hash("pass"), role="admin")
-    
-    acc_a = Account(id=50, currency="USD", balance=10.0, type="customer", owner_id=1)
-    acc_b = Account(id=60, currency="USD", balance=10.0, type="customer", owner_id=2)
-    auth_db.add_all([user_a, user_b, admin, acc_a, acc_b])
-    await auth_db.commit()
+async def test_route_rejects_garbage_token(client, db_session):
+    """Request with a malformed token → 401."""
+    acc = Account(id=502, currency="USD", balance=0.0, type="customer", owner_id=9001)
+    db_session.add(acc)
+    await db_session.flush()
 
-    # 2. Get tokens
-    tok_a = (await client.post("/auth/token", data={"username": "customer_a", "password": "pass"})).json()["access_token"]
-    tok_admin = (await client.post("/auth/token", data={"username": "admin_user", "password": "pass"})).json()["access_token"]
+    r = await client.get(
+        "/accounts/502",
+        headers={"Authorization": "Bearer this.is.garbage"},
+    )
+    assert r.status_code == 401
 
-    # Customer A requests own account -> Success
-    res1 = await client.get("/accounts/50", headers={"Authorization": f"Bearer {tok_a}"})
-    assert res1.status_code == 200
 
-    # Customer A requests Customer B's account -> 404 (don't leak existence via 403)
-    res2 = await client.get("/accounts/60", headers={"Authorization": f"Bearer {tok_a}"})
-    assert res2.status_code == 404
+@pytest.mark.asyncio
+async def test_customer_can_only_access_own_account(client, db_session):
+    """Customer sees own account (200) and gets 404 for another user's account."""
+    user_a = User(username="cust_a", hashed_password=get_password_hash("pass"), role="customer")
+    user_b = User(username="cust_b", hashed_password=get_password_hash("pass"), role="customer")
+    db_session.add_all([user_a, user_b])
+    await db_session.flush()
 
-    # Admin requests Customer B's account -> 200 (Admins have access to all)
-    res3 = await client.get("/accounts/60", headers={"Authorization": f"Bearer {tok_admin}"})
-    assert res3.status_code == 200
+    acc_a = Account(id=601, currency="USD", balance=10.0, type="customer", owner_id=user_a.id)
+    acc_b = Account(id=602, currency="USD", balance=10.0, type="customer", owner_id=user_b.id)
+    db_session.add_all([acc_a, acc_b])
+    await db_session.flush()
+
+    tok_a = (
+        await client.post("/auth/token", data={"username": "cust_a", "password": "pass"})
+    ).json()["access_token"]
+
+    r1 = await client.get("/accounts/601", headers={"Authorization": f"Bearer {tok_a}"})
+    assert r1.status_code == 200
+
+    r2 = await client.get("/accounts/602", headers={"Authorization": f"Bearer {tok_a}"})
+    assert r2.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_admin_can_access_any_account(client, db_session):
+    """Admin role can access any account regardless of ownership."""
+    admin = User(username="admin_test", hashed_password=get_password_hash("pass"), role="admin")
+    owner = User(username="acc_owner", hashed_password=get_password_hash("pass"), role="customer")
+    db_session.add_all([admin, owner])
+    await db_session.flush()
+
+    acc = Account(id=603, currency="USD", balance=10.0, type="customer", owner_id=owner.id)
+    db_session.add(acc)
+    await db_session.flush()
+
+    tok_admin = (
+        await client.post("/auth/token", data={"username": "admin_test", "password": "pass"})
+    ).json()["access_token"]
+
+    r = await client.get("/accounts/603", headers={"Authorization": f"Bearer {tok_admin}"})
+    assert r.status_code == 200
