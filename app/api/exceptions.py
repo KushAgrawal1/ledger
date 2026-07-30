@@ -20,20 +20,20 @@ async def ledger_exception_handler(request: Request, exc: LedgerError):
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 
     if isinstance(exc, InsufficientBalanceError):
-        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
         error_code = "insufficient_balance"
     elif isinstance(exc, AccountNotFoundError):
         # We return 404 for missing accounts to prevent leaking existence
         status_code = status.HTTP_404_NOT_FOUND
         error_code = "account_not_found"
     elif isinstance(exc, CurrencyMismatchError):
-        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
         error_code = "currency_mismatch"
     elif isinstance(exc, IdempotencyConflictError):
         status_code = status.HTTP_409_CONFLICT
         error_code = "idempotency_conflict"
     elif isinstance(exc, InvalidTransferError):
-        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
         error_code = "invalid_transfer"
 
     return JSONResponse(
