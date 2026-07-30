@@ -1,19 +1,20 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
-# Default connection URL matching your local Docker compose setup
-DATABASE_URL = "postgresql+psycopg2://ledger:ledger@localhost:5432/ledger"
+from app.core.config import settings
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_async_engine(settings.database_url, echo=False)
 
-# This is the "Base" class that all your models inherit from
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=True,
+)
+
 Base = declarative_base()
 
-# Dependency to get DB session in FastAPI endpoints
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+
+async def get_db() -> AsyncSession:
+    async with AsyncSessionLocal() as session:
+        yield session
