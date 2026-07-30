@@ -139,7 +139,7 @@ async def create_transfer(
         idempotency_key=idempotency_key,
         from_account_id=payload.from_account_id,
         to_account_id=payload.to_account_id,
-        amount=float(payload.amount),
+        amount=payload.amount,
         currency=payload.currency
     )
     
@@ -162,9 +162,11 @@ async def get_transfer(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transfer not found")
 
     # Assert participant status or admin permissions
+    from_acc = await db.get(Account, transfer.from_account_id)
+    to_acc   = await db.get(Account, transfer.to_account_id)
     is_participant = (
-        transfer.from_account_id == current_user.id or 
-        transfer.to_account_id == current_user.id
+        (from_acc and from_acc.owner_id == current_user.id) or
+        (to_acc   and to_acc.owner_id   == current_user.id)
     )
     if current_user.role != "admin" and not is_participant:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transfer not found")

@@ -1,52 +1,41 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-# ==========================================
-# AUTH SCHEMAS (Phase 5)
-# ==========================================
+# ── Auth ──────────────────────────────────────────────────────────────────────
 
 class UserRegister(BaseModel):
     username: str = Field(..., min_length=3, max_length=150)
     password: str = Field(..., min_length=6)
-    role: str | None = "customer"  # "customer" or "admin"
+    role: str | None = "customer"
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     username: str
-    role: str
-
-    class Config:
-        from_attributes = True
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
 
 
-# ==========================================
-# ACCOUNT SCHEMAS (Phase 4)
-# ==========================================
+# ── Accounts ──────────────────────────────────────────────────────────────────
 
 class AccountCreate(BaseModel):
     currency: str = Field(..., min_length=3, max_length=3)
     type: str = Field("customer", pattern="^(customer|external)$")
 
 class AccountResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     currency: str
     balance: Decimal
     type: str
     owner_id: int | None = None
 
-    class Config:
-        from_attributes = True
 
-
-# ==========================================
-# TRANSFER & ENTRY SCHEMAS (Phase 4)
-# ==========================================
+# ── Transfers & Entries ───────────────────────────────────────────────────────
 
 class TransferRequest(BaseModel):
     from_account_id: int
@@ -55,6 +44,7 @@ class TransferRequest(BaseModel):
     currency: str = Field(..., min_length=3, max_length=3)
 
 class TransferResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     idempotency_key: str
     from_account_id: int
@@ -63,22 +53,15 @@ class TransferResponse(BaseModel):
     currency: str
     status: str
 
-    class Config:
-        from_attributes = True
-
 class EntryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     transfer_id: int
     account_id: int
     amount: Decimal
 
-    class Config:
-        from_attributes = True
 
-
-# ==========================================
-# STATEMENT SCHEMAS (Phase 4)
-# ==========================================
+# ── Statement ─────────────────────────────────────────────────────────────────
 
 class StatementResponse(BaseModel):
     entries: list[EntryResponse]
@@ -86,11 +69,10 @@ class StatementResponse(BaseModel):
     offset: int
 
 
-# ==========================================
-# KAFKA EVENT SCHEMAS (Phase 8)
-# ==========================================
+# ── Kafka event ───────────────────────────────────────────────────────────────
 
 class TransferCompletedEvent(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     schema_version: int = Field(default=1, frozen=True)
     event_id: str
     transfer_id: int
@@ -99,6 +81,3 @@ class TransferCompletedEvent(BaseModel):
     amount: Decimal
     currency: str
     timestamp: datetime
-
-    class Config:
-        from_attributes = True

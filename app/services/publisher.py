@@ -9,6 +9,19 @@ from aiokafka import AIOKafkaProducer
 from app.api.schemas import TransferCompletedEvent
 from app.models.transfer import Transfer
 
+
+def _json_serialise(obj):
+    """JSON encoder that handles Decimal and datetime — both appear in transfer events."""
+    from datetime import datetime
+    from decimal import Decimal
+    if isinstance(obj, Decimal):
+        return str(obj)       # "100.0000" — preserves precision
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Cannot serialise type {type(obj).__name__}")
+
+
+
 logger = logging.getLogger(__name__)
 
 class TransferEventPublisher(Protocol):
@@ -29,7 +42,7 @@ class KafkaTransferEventPublisher:
         if self._producer is None:
             self._producer = AIOKafkaProducer(
                 bootstrap_servers=self.bootstrap_servers,
-                value_serializer=lambda v: json.dumps(v).encode("utf-8")
+                value_serializer=lambda v: json.dumps(v, default=_json_serialise).encode("utf-8")
             )
             await self._producer.start()
         return self._producer
