@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Environment — never commit real secrets
+.env
+.env.local
+
+# Test artefacts
+.coverage
+htmlcov/
+.pytest_cache/
+pytest_output.txt
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
