@@ -1,8 +1,8 @@
-version: "3.8"
 
 services:
   db:
     image: postgres:16-alpine
+    container_name: ledger-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
@@ -23,7 +23,6 @@ services:
     ports:
       - "9092:9092"
     environment:
-      # KRaft configuration for a local, single-node cluster (No Zookeeper required)
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@localhost:9093'
@@ -37,10 +36,6 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
 
-volumes:
-  pgdata:
-
-# docker-compose.yml - add this service
   api:
     build: .
     container_name: ledger-api
@@ -52,3 +47,6 @@ volumes:
       db:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+volumes:
+  pgdata:
