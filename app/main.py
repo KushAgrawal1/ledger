@@ -1,31 +1,33 @@
 from fastapi import FastAPI
-from app.core.logging_config import configure_logging, RequestIDMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.exceptions import ledger_exception_handler
 from app.api.routes import account_router
 from app.api.routes import router as api_router
+from app.core.logging_config import RequestIDMiddleware, configure_logging
 from app.services.exceptions import LedgerError
+
+configure_logging()
 
 app = FastAPI(title="Distributed Ledger API")
 
-# Register our domain-to-HTTP exception mapping handler
+# Structured JSON logging with per-request trace ID
+app.add_middleware(RequestIDMiddleware)
+
+# Map domain exceptions to structured HTTP responses
 app.add_exception_handler(LedgerError, ledger_exception_handler)
 
-# 1. Include the Authentication Routes (/auth/register, /auth/token)
+# Auth routes: /auth/register, /auth/token, /auth/refresh
 app.include_router(auth_router)
 
-# 2. Include the Accounts Routes (/accounts, /accounts/{id}, /accounts/{id}/statement)
+# Account routes: /accounts, /accounts/{id}, /accounts/{id}/statement
 app.include_router(account_router)
 
-# 3. Include the Core Transfers and Readiness Routes (/transfers, /readyz)
+# Transfer and health routes: /transfers, /readyz
 app.include_router(api_router)
 
 
-# ==========================================
-# LIVENESS PROBE
-# ==========================================
 @app.get("/healthz", status_code=200)
 async def healthz():
-    """Simple liveness probe indicating the application process is running."""
+    """Liveness probe — confirms the process is running, no DB check."""
     return {"status": "healthy"}
