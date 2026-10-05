@@ -61,14 +61,29 @@ async def execute_transfer(
             raise IdempotencyKeyConflictError("Idempotency key payload mismatch")
         return existing
 
-    # 3. Lock rows in deterministic order to prevent deadlocks
+    # 3. Lock rows in deterministic order to prevent deadlocks.
+    #
+    # populate_existing=True matters as much as the lock itself: callers
+    # commonly fetch one of these accounts earlier in the same request
+    # (e.g. the route layer's ownership check) before execute_transfer
+    # ever runs. That earlier read puts the account into this session's
+    # SQLAlchemy identity map. Without populate_existing, SQLAlchemy does
+    # NOT refresh an already-mapped object's attributes just because it
+    # was selected again - it hands back the same cached Python object,
+    # stale balance and all, even though the FOR UPDATE row lock was
+    # correctly acquired at the database level. The balance check and
+    # the write below would then both run against a number that was
+    # already out of date the moment the lock was granted, silently
+    # discarding whatever a concurrent transfer had just committed.
     first_id, second_id = sorted([from_account_id, to_account_id])
 
     await db.execute(
-        select(Account).where(Account.id == first_id).with_for_update()
+        select(Account).where(Account.id == first_id)
+        .with_for_update().execution_options(populate_existing=True)
     )
     await db.execute(
-        select(Account).where(Account.id == second_id).with_for_update()
+        select(Account).where(Account.id == second_id)
+        .with_for_update().execution_options(populate_existing=True)
     )
 
     from_acc = await db.get(Account, from_account_id)
